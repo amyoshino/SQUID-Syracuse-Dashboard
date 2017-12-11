@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 import os
 import datetime
+import copy
 
 app = dash.Dash(__name__)
 server = app.server
@@ -27,13 +28,34 @@ grouped_tab = map_data.ix[:, [0, 3, 7]].groupby('Date', as_index = False).mean()
 #map_data.drop("Unnamed: 0", 1, inplace=True)
 
 # Boostrap CSS.
-app.css.append_css({"external_url": "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"})
-# Extra Dash styling.
-app.css.append_css({"external_url": 'https://codepen.io/chriddyp/pen/bWLwgP.css'})
-# JQuery is required for Bootstrap.
-app.scripts.append_script({"external_url": "https://code.jquery.com/jquery-3.2.1.min.js"})
-# Bootstrap Javascript.
-app.scripts.append_script({"external_url": "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"})
+app.css.append_css({'external_url': 'https://cdn.rawgit.com/plotly/dash-app-stylesheets/2d266c578d2a6e8850ebce48fdb52759b2aef506/stylesheet-oil-and-gas.css'})  # noqa: E501
+
+layout = dict(
+    autosize=True,
+    height=670,
+    font=dict(color='#fffcfc'),
+    titlefont=dict(color='#fffcfc', size='14'),
+    margin=dict(
+        l=35,
+        r=35,
+        b=35,
+        t=45
+    ),
+    hovermode="closest",
+    plot_bgcolor="#191A1A",
+    paper_bgcolor="#020202",
+    legend=dict(font=dict(size=10), orientation='h'),
+    title='Hover point in the map to observe street condition',
+    mapbox=dict(
+        accesstoken=mapbox_access_token,
+        style="dark",
+        center=dict(
+            lon=-76.155,
+            lat=43.052
+        ),
+        zoom=11,
+    )
+)
 
 # Components style
 def color_scale(map_data):
@@ -65,23 +87,18 @@ def gen_map(map_data):
                     }
                 }
             ],
-        "layout": {
-            "height": 850,
-            "width": 750,
-            "hovermode": "closest",
-            "mapbox": {
-                "accesstoken": mapbox_access_token,
-                "bearing": 0,
-                "center": {
-                    "lat": 43.052,
-                    "lon": -76.155
-                },
-                "pitch": 0,
-                "zoom": 11,
-                "style": "dark"
-            }
-        }
+        "layout": layout
     }
+
+# Creating layouts for image and datatable
+layout_pic = copy.deepcopy(layout)
+layout_pic['height'] = 300
+layout_pic['margin-top'] = '10'
+layout_pic['max-width'] = 550
+
+layout_right = copy.deepcopy(layout)
+layout_right['height'] = 300
+layout_right['margin-top'] = '10'
 
 
 # Layout
@@ -92,37 +109,28 @@ app.layout = html.Div([
             html.H1(
                 'Street Quality IDentification [SQUID]',
                 style={'font-family': 'Helvetica',
-                       "text-align": "right",
-                       "width": "1050",
                        "margin-top": "25",
-                       "margin-bottom": "0",
-                       "font-size": "280%"},
-                className='col-md-10',
+                       "margin-bottom": "0"},
+                className='eight columns',
             ),
             html.Img(
                 src="http://static1.squarespace.com/static/546fb494e4b08c59a7102fbc/t/591e105a6a496334b96b8e47/1497495757314/.png",
-                className='col-md-2',
+                className='two columns',
                 style={
-                    'height': '100',
-                    'width': '135',
+                    'height': '9%',
+                    'width': '9%',
                     'float': 'right',
-                    'position': 'float',
-                    "margin-right": "20"
+                    'position': 'relative',
+                    'padding-top': 10,
+                    'padding-right': 0
                 },
             ),
             html.P(
-                'ARGO',
+                'ARGO - Pilot with City of Syracuse - April 2016',
                 style={'font-family': 'Helvetica',
-                       "text-align": "center",
-                       "font-size": "120%"},
-                className='col-md-12',
-            ),
-            html.P(
-                'Pilot with City of Syracuse - April 2016',
-                style={'font-family': 'Helvetica',
-                       "text-align": "center",
-                       "font-size": "120%"},
-                className='col-md-12',
+                       "font-size": "120%",
+                       "width": "80%"},
+                className='ten columns',
             ),
         ],
         className='row'
@@ -135,18 +143,14 @@ app.layout = html.Div([
                 [
                     dcc.Graph(id='map-graph',
                               figure = gen_map(map_data),
-                              style={'font-family': 'Helvetica',
-                                    "text-align": "center",
-                                    "font-size": "30%"})
-                ], className = "col-md-5"
+                              style={'margin-top': '10'})
+                ], className = "six columns"
             ),
             html.Div(
                 [
                     html.Img(id = 'image',
-                    style={'max-width': '90%', 'max-height': '90%', 'height': 400,
-                            'padding-top': '100', 'padding-left': '100',
-                            'margin-left': 'auto', 'margin-right': 'auto'})
-                ], className = "col-md-7"
+                    style=layout_pic)
+                ], className = "six columns"
             ),
             html.Div(
                 [
@@ -156,17 +160,17 @@ app.layout = html.Div([
                         row_selectable=True,
                         filterable=False,
                         sortable=True,
-                        selected_row_indices=[],
+                        selected_row_indices=[0, 1, 2],
                         id='datatable'),
                 ],
-                style={'width': '44%', "font-size": 11, "height": 100,
-                    "margin-top": 0, "padding-top": 10, "padding-left": 115},
-                className="col-md-7"
+                style=layout_right,
+                className="six columns"
             )
-        ], className="col-md-12"
+        ], className='row'
     )
-])
+], className='ten columns offset-by-one')
 
+# Callbacks and functions
 def dfRowFromHover( hoverData ):
     ''' Returns row for hover point as a Pandas Series '''
     if hoverData is not None:
