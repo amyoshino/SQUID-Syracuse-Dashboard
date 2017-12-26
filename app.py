@@ -18,7 +18,7 @@ app = dash.Dash(__name__)
 server = app.server
 
 # API keys and datasets
-mapbox_access_token = 'pk.eyJ1IjoiYW15b3NoaW5vIiwiYSI6ImNqOXA3dGF2bDJhMjMyd2xnNTJqdXFxc2sifQ.9SoIXAYOZ8qfTiHaw6rWmg'
+mapbox_access_token = 'YOUR KEY'
 map_data = pd.read_csv('SQUID-SYRACUSE-MASTER - FINAL-APR29-SPEEDgt5.csv - SQUID-SYRACUSE-MASTER - FINAL-APR29-SPEEDgt5.csv')
 map_data['Timestamp'] = map_data['Timestamp'].apply(lambda x : datetime.datetime.fromtimestamp(int(x)).strftime('%Y-%m-%d'))
 map_data.columns = ['Date', 'Latitude', 'Longitude', 'Speed', 'X', 'Y', 'Z', 'Ride_Quality', 'Image_Name',
@@ -58,13 +58,52 @@ layout = dict(
 )
 
 # Components style
-def color_scale(map_data):
+
+mp_max = map_data['Ride_Quality'].max()
+mp_min = map_data['Ride_Quality'].min()
+
+def color_scale(md, selected_row_indices=[]):
     color = []
-    max_score = map_data['Ride_Quality'].max()
-    min_score = map_data['Ride_Quality'].min()
-    for row in map_data['Ride_Quality']:
-        color.append((row - min_score)/(max_score - min_score))
+    max_score = mp_max
+    min_score = mp_min
+    for row in md['Ride_Quality']:
+        scale = (row - mp_min)/(mp_max - mp_min)
+        if scale <= 0.06:
+            color.append("#26EC04")
+        elif scale <= 0.12:
+            color.append("#8FDB44")
+        elif scale <= 0.18:
+            color.append("#A5D643")
+        elif scale <= 0.24:
+            color.append("#B8D343")
+        elif scale <= 0.30:
+            color.append("#B8D343")
+        elif scale <= 0.36:
+            color.append("#DBCD44")
+        elif scale <= 0.42:
+            color.append("#E1CD44")
+        elif scale <= 0.48:
+            color.append("#F0CB45")
+        elif scale <= 0.54:
+            color.append("#F3C644")
+        elif scale <= 0.60:
+            color.append("#F2BE41")
+        elif scale <= 0.66:
+            color.append("#F0AE3D")
+        elif scale <= 0.72:
+            color.append("#EFA73B")
+        elif scale <= 0.78:
+            color.append("#EE9F39")
+        elif scale <= 0.84:
+            color.append("#ED8934")
+        elif scale <= 0.90:
+            color.append("#E95729")
+        else:
+            color.append("#FD0101")
+    for i in selected_row_indices:
+        color[i] = '#1500FA'
     return color
+
 
 def gen_map(map_data):
     # groupby returns a dictionary mapping the values of the first field
@@ -80,10 +119,9 @@ def gen_map(map_data):
                     "mode": "markers",
                     "name": list(map_data['Ride_Quality']),
                     "marker": {
-                        "size": 3,
+                        "size": 4,
                         "opacity": 0.8,
-                        "color": color_scale(map_data),
-                        "colorscale": 'GnYlRd'
+                        "color": color_scale(map_data)
                     }
                 }
             ],
@@ -136,6 +174,29 @@ app.layout = html.Div([
         className='row'
     ),
 
+    # Selectors
+    html.Div(
+        [
+
+            html.Div(
+                [
+                    html.P('Choose ride quality (1: Poor - 5: Very Good - 6: All)'),
+                    dcc.Slider(
+                        id = 'quality',
+                        min=1,
+                        max=6,
+                        marks={i: 'Level {}'.format(i) for i in range(1,7)},
+                        value=6,
+                    )
+                ],
+                className='five columns',
+                style={'margin': '15', 'padding-left': '10'}
+            ),
+
+        ],
+        className='row'
+    ),
+
     # Map + image + table
     html.Div(
         [
@@ -160,7 +221,7 @@ app.layout = html.Div([
                         row_selectable=True,
                         filterable=False,
                         sortable=True,
-                        selected_row_indices=[0, 1, 2],
+                        selected_row_indices=[0],
                         id='datatable'),
                 ],
                 style=layout_right,
@@ -196,14 +257,29 @@ def update_image_src(map_hover):
 @app.callback(
     Output('map-graph', 'figure'),
     [Input('datatable', 'rows'),
-     Input('datatable', 'selected_row_indices')])
-def map_selection(rows, selected_row_indices):
+     Input('datatable', 'selected_row_indices'),
+     dash.dependencies.Input('quality', 'value')])
+def map_selection(rows, selected_row_indices, quality):
     if len(selected_row_indices) == 0:
         return gen_map(map_data)
     else:
         print (selected_row_indices)
         date = list(grouped_tab.ix[selected_row_indices,:]['Date'])
         temp_df = map_data[map_data['Date'].isin(date)]
+        print(temp_df)
+        if quality == 5:
+            temp_df = temp_df[temp_df['Ride_Quality'] < 1.0]
+        if quality == 4:
+            temp_df = temp_df[(temp_df['Ride_Quality'] >= 1.0) & \
+                              (temp_df['Ride_Quality'] < 2.0)]
+        if quality == 3:
+            temp_df = temp_df[(temp_df['Ride_Quality'] >= 2.0) & \
+                              (temp_df['Ride_Quality'] < 3.0)]
+        if quality == 2:
+            temp_df = temp_df[(temp_df['Ride_Quality'] >= 3.0) & \
+                              (temp_df['Ride_Quality'] < 4.0)]
+        if quality == 1:
+            temp_df = temp_df[temp_df['Ride_Quality'] >= 4.0]
         return gen_map(temp_df)
 
 @app.callback(
